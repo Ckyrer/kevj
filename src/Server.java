@@ -54,7 +54,7 @@ public class Server {
                     // считываем и печатаем все что было отправлено клиентом
                     final String requestText = input.readLine();
                     final String requestType = requestText.split(" ")[0];
-                    final String requestedResource = requestText.split(" ")[1];
+                    final String requestedResource = requestText.split(" ")[1].substring(1);
                     final String ip = socket.getInetAddress().toString().substring(1);
                     
                     System.out.println("Client connected! " + ip + " " + requestType + " " + requestedResource);
@@ -70,7 +70,7 @@ public class Server {
 
                     if (proceed) {
                         // Если команда
-                        if (requestedResource.startsWith("/CMD%3C%3E")) {
+                        if (requestedResource.startsWith("CMD%3C%3E")) {
                             String cmd = requestedResource.split("%3C%3E")[1];
                             ResponseCMDAction res;
                             if ((res = commands.get(cmd))!=null) {
@@ -94,12 +94,13 @@ public class Server {
                                 boolean isFinded = false;
 
                                 for (Map.Entry<String, ResponseAction> el: responses.entrySet()) {
-                                    if (requestedResource.startsWith(el.getKey())) {
+                                    if (!el.getKey().equals("") && requestedResource.startsWith(el.getKey())) {
                                         el.getValue().response(requestedResource, ip, requestText);
                                         isFinded = true;
                                         break;
                                     }
                                 }
+                                
 
                                 if (!isFinded) {
                                     send404Response(requestedResource, ip, requestText);
