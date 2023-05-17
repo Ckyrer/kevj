@@ -27,10 +27,15 @@ public class DataOperator {
         return data;
     }
 
-    public static byte[] readFileAsBytes(String file_path) throws IOException {
+    public static byte[] readFileAsBytes(String file_path) {
         Path path = Paths.get(projectPath+file_path);
-        byte[] data = Files.readAllBytes(path);
-        
+        byte[] data;
+        try {
+            data = Files.readAllBytes(path);
+        } catch (IOException e) {
+            e.printStackTrace();
+            data = null;
+        }
         return data;
     }
 

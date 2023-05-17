@@ -6,41 +6,28 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-interface onRequestAction {
-    boolean response(String resource, String ip, String request);
-}
-
-interface onRequestCMDAction {
-    boolean response(String ip, String[] args);
-}
 
 
 public class Server {
     final private int port;
     private PrintWriter out;
     private OutputStream outb;
-    final private Map<String, onRequestAction> responses = new HashMap<String, onRequestAction>();
-    final private Map<String, onRequestCMDAction> commands = new HashMap<String, onRequestCMDAction>();
-    final private Map<String, ArrayList<String>> dataTypes = new HashMap<String, ArrayList<String>>();
+    final private Map<String, ResponseAction> responses = new HashMap<String, ResponseAction>();
+    final private Map<String, ResponseCMDAction> commands = new HashMap<String, ResponseCMDAction>();
 
     public Server(int port) {
         this.port = port;
     }
 
-    public final void addRequestHandler(String requestedResourse, onRequestAction handler) {
+    public final void addRequestHandler(String requestedResourse, ResponseAction handler) {
         this.responses.put(requestedResourse, handler);
     }
 
-    public final void addRequestCMDHandler(String requestedResourse, onRequestCMDAction handler) {
+    public final void addRequestCMDHandler(String requestedResourse, ResponseCMDAction handler) {
         this.commands.put(requestedResourse, handler);
-    }
-
-    public final void addDataTypes(String type, ArrayList<String> exts) {
-        this.dataTypes.put(type, exts);
     }
 
     public final void start() {
@@ -72,7 +59,7 @@ public class Server {
                     
                     System.out.println("Client connected! " + ip + " " + requestType + " " + requestedResource);
 
-                    onRequestAction overwatch;
+                    ResponseAction overwatch;
                     boolean proceed = true;
 
                     if ((overwatch = this.responses.get("OVERWATCH"))!=null) {
@@ -85,10 +72,9 @@ public class Server {
                         // Если команда
                         if (requestedResource.startsWith("/CMD%3C%3E")) {
                             String cmd = requestedResource.split("%3C%3E")[1];
-                            String[] args = requestedResource.substring(requestedResource.indexOf("%3C%3E", 9)+6).split("%3C%3E");
-                            onRequestCMDAction res;
+                            ResponseCMDAction res;
                             if ((res = commands.get(cmd))!=null) {
-                                res.response(ip, args);
+                                res.response(requestedResource, ip);
                             } else {
                                 output.println("HTTP/2 200 OK");
                                 output.println("Content-Type: text/html; charset=utf-8");
@@ -103,31 +89,21 @@ public class Server {
                             if (this.responses.containsKey(requestedResource)) {
                                 // Выполняем обработчик события и отправляем результат
                                 this.responses.get(requestedResource).response(requestedResource, ip, requestText);
-                            // Если ресурс является медиа
-                            } else if (requestedResource.startsWith("/media/")) {
-                                String pathToRes = requestedResource.substring(7);
-                                
-                                // Если файл существует то ищем расширение в списке
-                                if (DataOperator.isFileExist(pathToRes)) {
-                                    String ext = pathToRes.substring(pathToRes.lastIndexOf('.')+1);
-                                    String contentType = "text/html";
-                                    for (Map.Entry<String, ArrayList<String>> el : dataTypes.entrySet()) {
-                                        if (el.getValue().contains(ext)) {
-                                            contentType = el.getKey()+"/"+ext;
-                                        }
-                                    }
-                                    outputb.write(("HTTP/2 200 OK").getBytes());
-                                    outputb.write(("Content-Type: "+contentType+"; charset=utf-8").getBytes());
-                                    outputb.write("\n".getBytes());
-                                    outputb.write(DataOperator.readFileAsBytes(pathToRes));
-                                    outputb.flush();
-                                // Иначе отправлем 404
-                                } else {
-                                    send404Response(output, requestedResource, ip, requestText);
-                                }
                             // Иначе отправляем 404
                             } else {
-                                send404Response(output, requestedResource, ip, requestText);
+                                boolean isFinded = false;
+
+                                for (Map.Entry<String, ResponseAction> el: responses.entrySet()) {
+                                    if (requestedResource.startsWith(el.getKey())) {
+                                        el.getValue().response(requestedResource, ip, requestText);
+                                        isFinded = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!isFinded) {
+                                    send404Response(requestedResource, ip, requestText);
+                                }
                             }
                         }
                     }
@@ -142,8 +118,8 @@ public class Server {
         }
     }
 
-    private final void send404Response(PrintWriter out, String resource, String ip, String request) {
-        onRequestAction res;
+    public final void send404Response(String resource, String ip, String request) {
+        ResponseAction res;
         if ((res = responses.get("404")) != null) {
             res.response(resource, ip, request);
         } else {
