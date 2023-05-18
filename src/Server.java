@@ -32,7 +32,6 @@ public class Server {
 
     public final void start() {
         try (ServerSocket serverSocket = new ServerSocket(this.port)) {
-            System.out.println("Server started!");
             
             while (true) {
                 // ожидаем подключения
@@ -56,8 +55,7 @@ public class Server {
                     final String requestType = requestText.split(" ")[0];
                     final String requestedResource = requestText.split(" ")[1].substring(1);
                     final String ip = socket.getInetAddress().toString().substring(1);
-                    
-                    System.out.println("Client connected! " + ip + " " + requestType + " " + requestedResource);
+                
 
                     ResponseAction overwatch;
                     boolean proceed = true;
