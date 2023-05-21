@@ -67,7 +67,7 @@ public class Server {
 
                     if (proceed) {
                         // Если команда
-                        if (requestedResource.startsWith("CMD%3C%3E")) {
+                        if (requestedResource.contains("CMD%3C%3E")) {
                             String cmd = requestedResource.split("%3C%3E")[1];
                             ResponseCMDAction res;
                             if ((res = commands.get(cmd))!=null) {

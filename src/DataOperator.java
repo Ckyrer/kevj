@@ -63,7 +63,7 @@ public class DataOperator {
             
             return result;
         } else {
-            return "You don't supposed to see it. Please report developer about this.";
+            return "You don't supposed to see it. Please report developer about this. (build failed)";
         }
     }
 
