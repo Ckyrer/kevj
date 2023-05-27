@@ -84,13 +84,11 @@ final class asyncLoader implements Runnable {
     final String path;
     final String contentType;
     final OutputStream out;
-    final Server server;
 
-    public asyncLoader(Server s, OutputStream out, String contentType, String path) {
+    public asyncLoader(OutputStream out, String contentType, String path) {
         this.path = path;
         this.out = out;
         this.contentType = contentType;
-        this.server = s;
     }
 
     public void run(){
@@ -109,10 +107,10 @@ final class asyncLoader implements Runnable {
             }
             in.close();
             out.flush();
+            out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        server.closeConnection();
     }
 }
 

@@ -179,7 +179,7 @@ public class Server {
     }
 
     public final void sendResponseAsync(String contentType, String filepath) {
-        new Thread(new asyncLoader(this, outputb, contentType, DataOperator.projectPath+filepath)).start();
+        new Thread(new asyncLoader(outputb, contentType, DataOperator.projectPath+filepath)).start();
     }
 
 }
