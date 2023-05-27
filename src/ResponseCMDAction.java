@@ -11,7 +11,7 @@ public class ResponseCMDAction {
     }
 
     public final boolean response(String resource, String ip) {
-        String[] args = resource.substring(resource.indexOf("%3C%3E", 9)+6).split("%3C%3E");
+        String[] args = resource.substring(resource.indexOf("<>", 5)+2).split("<>");
         return this.func.response(ip, args);
     }
 }

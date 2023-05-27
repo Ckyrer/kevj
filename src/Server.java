@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -13,8 +14,8 @@ import java.util.Map;
 
 public class Server {
     final private int port;
-    private PrintWriter out;
-    private OutputStream outb;
+    public PrintWriter out;
+    public OutputStream outb;
     final private Map<String, ResponseAction> responses = new HashMap<String, ResponseAction>();
     final private Map<String, ResponseCMDAction> commands = new HashMap<String, ResponseCMDAction>();
 
@@ -52,7 +53,8 @@ public class Server {
 
                     // считываем и печатаем все что было отправлено клиентом
                     final String requestText = input.readLine();
-                    final String requestedResource = requestText.split(" ")[1].substring(1);
+                    final String requestedResource = requestText.split(" ")[1].replace("%20", " ").replace("%3C%3E", "<>").substring(1);
+                    
                     final String ip = socket.getInetAddress().toString().substring(1);
                 
 
@@ -67,17 +69,13 @@ public class Server {
 
                     if (proceed) {
                         // Если команда
-                        if (requestedResource.contains("CMD%3C%3E")) {
-                            String cmd = requestedResource.split("%3C%3E")[1];
+                        if (requestedResource.contains("CMD<>")) {
+                            String cmd = requestedResource.split("CMD")[0] + requestedResource.split("<>")[1];
                             ResponseCMDAction res;
                             if ((res = commands.get(cmd))!=null) {
                                 res.response(requestedResource, ip);
                             } else {
-                                output.println("HTTP/2 200 OK");
-                                output.println("Content-Type: text/html; charset=utf-8");
-                                output.println();
-                                output.println("None");
-                                output.flush();
+                                sendResponse("NONE");
                             }
                         } 
                         // Если не команда
@@ -159,11 +157,15 @@ public class Server {
 
     public final void sendResponse(String contentType, byte[] content) {
         try {
-            outb.write(("HTTP/2 200 OK\n").getBytes());
-            outb.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
-            outb.write("\n".getBytes());
-            outb.write(content);
-            outb.flush();
+            try {
+                outb.write(("HTTP/2 200 OK\n").getBytes());
+                outb.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
+                outb.write("\n".getBytes());
+                outb.write(content);
+                outb.flush();
+            } catch (SocketException e) {
+                System.out.println("Connection broken!");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
