@@ -28,7 +28,7 @@ public class Server {
         this.responses.put(requestedResourse, new ResponseAction(handler, isStart));
     }
 
-    public final void addRequestCMDHandler(String requestedResourse, boolean isStart, ActionCMD handler) {
+    public final void addRequestCMDHandler(String requestedResourse, ActionCMD handler) {
         this.commands.put(requestedResourse, new ResponseCMDAction(handler));
     }
 
