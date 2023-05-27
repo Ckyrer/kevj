@@ -10,8 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-
-
 public class Server {
     final private int port;
     public PrintWriter out;
