@@ -12,8 +12,11 @@ import java.util.Map;
 
 public class Server {
     final private int port;
-    public PrintWriter out;
-    public OutputStream outb;
+
+    public PrintWriter output;
+    public OutputStream outputb;
+    public BufferedReader input;
+
     final private Map<String, ResponseAction> responses = new HashMap<String, ResponseAction>();
     final private Map<String, ResponseCMDAction> commands = new HashMap<String, ResponseCMDAction>();
 
@@ -21,12 +24,12 @@ public class Server {
         this.port = port;
     }
 
-    public final void addRequestHandler(String requestedResourse, ResponseAction handler) {
-        this.responses.put(requestedResourse, handler);
+    public final void addRequestHandler(String requestedResourse,  boolean isStart, Action handler) {
+        this.responses.put(requestedResourse, new ResponseAction(handler, isStart));
     }
 
-    public final void addRequestCMDHandler(String requestedResourse, ResponseCMDAction handler) {
-        this.commands.put(requestedResourse, handler);
+    public final void addRequestCMDHandler(String requestedResourse, boolean isStart, ActionCMD handler) {
+        this.commands.put(requestedResourse, new ResponseCMDAction(handler));
     }
 
     public final void start() {
@@ -38,77 +41,78 @@ public class Server {
 
                 // для подключившегося клиента открываем потоки 
                 // чтения и записи
-                try (
-                    BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                    PrintWriter output = new PrintWriter(socket.getOutputStream());
-                    OutputStream outputb = socket.getOutputStream();
-                ) {
-                    this.out = output;
-                    this.outb = outputb;
+                this.input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                this.outputb = socket.getOutputStream();
+                this.output = new PrintWriter(outputb);
 
-                    // ждем первой строки запроса
-                    while (!input.ready()) ;
+                // ждем первой строки запроса
+                while (!input.ready()) ;
 
-                    // считываем и печатаем все что было отправлено клиентом
-                    final String requestText = input.readLine();
-                    final String requestedResource = requestText.split(" ")[1].replace("%20", " ").replace("%3C%3E", "<>").substring(1);
-                    
-                    final String ip = socket.getInetAddress().toString().substring(1);
+                // считываем и печатаем все что было отправлено клиентом
+                final String requestText = input.readLine();
+                final String requestedResource = requestText.split(" ")[1].replace("%20", " ").replace("%3C%3E", "<>").substring(1);
                 
+                final String ip = socket.getInetAddress().toString().substring(1);
+            
 
-                    ResponseAction overwatch;
-                    boolean proceed = true;
+                ResponseAction overwatch;
+                boolean proceed = true;
 
-                    if ((overwatch = this.responses.get("OVERWATCH"))!=null) {
-                        if (!overwatch.response(requestedResource, ip, requestText)) {
-                            proceed = false;
-                        }
+                // Подключаем смотрителя, если он есть
+                if ((overwatch = this.responses.get("OVERWATCH"))!=null) {
+                    if (!overwatch.response(requestedResource, ip, requestText)) {
+                        proceed = false;
                     }
+                }
 
-                    if (proceed) {
-                        // Если команда
-                        if (requestedResource.contains("CMD<>")) {
-                            String cmd = requestedResource.split("CMD")[0] + requestedResource.split("<>")[1];
-                            ResponseCMDAction res;
-                            if ((res = commands.get(cmd))!=null) {
-                                res.response(requestedResource, ip);
-                            } else {
-                                sendResponse("NONE");
+                if (proceed) {
+                    // Если команда
+                    if (requestedResource.contains("CMD<>")) {
+                        String cmd = requestedResource.split("CMD")[0] + requestedResource.split("<>")[1];
+                        if (this.commands.containsKey(cmd)) {
+                            this.commands.get(cmd).response(requestedResource, ip);
+                        } else {
+                            sendResponse("NONE");
+                        }
+                    } 
+                    // Если не команда
+                    else {
+                        // Если ресурс существует
+                        if (this.responses.containsKey(requestedResource)) {
+                            // Выполняем обработчик события
+                            this.responses.get(requestedResource).response(requestedResource, ip, requestText);
+                        // Иначе смотрим isStart
+                        } else {
+                            boolean isFinded = false;
+
+                            // Ищем тот обработчик, с которого начинается запрос
+                            for (Map.Entry<String, ResponseAction> el: responses.entrySet()) {
+                                if (!el.getKey().equals("") && requestedResource.startsWith(el.getKey())) {
+                                    el.getValue().response(requestedResource, ip, requestText);
+                                    isFinded = true;
+                                    break;
+                                }
                             }
-                        } 
-                        // Если не команда
-                        else {
-                            // Если ресурс существует
-                            if (this.responses.containsKey(requestedResource)) {
-                                // Выполняем обработчик события и отправляем результат
-                                this.responses.get(requestedResource).response(requestedResource, ip, requestText);
+                            
                             // Иначе отправляем 404
-                            } else {
-                                boolean isFinded = false;
-
-                                for (Map.Entry<String, ResponseAction> el: responses.entrySet()) {
-                                    if (!el.getKey().equals("") && requestedResource.startsWith(el.getKey())) {
-                                        el.getValue().response(requestedResource, ip, requestText);
-                                        isFinded = true;
-                                        break;
-                                    }
-                                }
-                                
-
-                                if (!isFinded) {
-                                    send404Response(requestedResource, ip, requestText);
-                                }
+                            if (!isFinded) {
+                                send404Response(requestedResource, ip, requestText);
                             }
                         }
                     }
-
-                    
-                    // по окончанию выполнения блока try-with-resources потоки, 
-                    // а вместе с ними и соединение будут закрыты
                 }
             }
         } catch (IOException ex) {
             ex.printStackTrace();
+        }
+    }
+
+    public final void closeConnection() {
+        this.output.close();
+        try {
+            this.outputb.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -117,57 +121,65 @@ public class Server {
         if ((res = responses.get("404")) != null) {
             res.response(resource, ip, request);
         } else {
-            out.println("HTTP/2 404 Not Found");
-            out.println("Content-Type: text/html; charset=utf-8");
-            out.println();
-            out.println("Error 404");
-            out.flush();
+            output.println("HTTP/2 404 Not Found");
+            output.println("Content-Type: text/html; charset=utf-8");
+            output.println();
+            output.println("Error 404");
+            output.flush();
         }
+        closeConnection();
     }
 
     public final void sendResponse(String status, String contentType, String content) {
-        out.println("HTTP/2 "+status);
-        out.println("Content-Type: "+contentType+"; charset=utf-8");
-        out.println();
-        out.println(content);
-        out.flush();
+        output.println("HTTP/2 "+status);
+        output.println("Content-Type: "+contentType+"; charset=utf-8");
+        output.println();
+        output.println(content);
+        output.flush();
+        closeConnection();
     }
 
     public final void sendResponse(String content) {
-        out.println("HTTP/2 200 OK");
-        out.println("Content-Type: text/html; charset=utf-8");
-        out.println();
-        out.println(content);
-        out.flush();
+        output.println("HTTP/2 200 OK");
+        output.println("Content-Type: text/html; charset=utf-8");
+        output.println();
+        output.println(content);
+        output.flush();
+        closeConnection();
     }
 
     public final void sendResponse(String status, String contentType, byte[] content) {
         try {
-            outb.write(("HTTP/2 "+status).getBytes());
-            outb.write(("Content-Type: "+contentType+"; charset=utf-8").getBytes());
-            outb.write("\n".getBytes());
-            outb.write(content);
-            outb.flush();
+            outputb.write(("HTTP/2 "+status+"\n").getBytes());
+            outputb.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
+            outputb.write("\n".getBytes());
+            outputb.write(content);
+            outputb.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        closeConnection();
     }
 
     public final void sendResponse(String contentType, byte[] content) {
         try {
             try {
-                outb.write(("HTTP/2 200 OK\n").getBytes());
-                outb.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
-                outb.write("\n".getBytes());
-                outb.write(content);
-                outb.flush();
+                outputb.write(("HTTP/2 200 OK\n").getBytes());
+                outputb.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
+                outputb.write("\n".getBytes());
+                outputb.write(content);
+                outputb.flush();
             } catch (SocketException e) {
                 System.out.println("Connection broken!");
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        closeConnection();
+    }
 
+    public final void sendResponseAsync(String contentType, String filepath) {
+        new Thread(new asyncLoader(this, outputb, contentType, DataOperator.projectPath+filepath)).start();
     }
 
 }

@@ -1,12 +1,11 @@
-interface actionCMD {
+interface ActionCMD {
     boolean response(String ip, String[] args);
 }
 
+class ResponseCMDAction {
+    final ActionCMD func;
 
-public class ResponseCMDAction {
-    final actionCMD func;
-
-    public ResponseCMDAction(actionCMD func) {
+    public ResponseCMDAction(ActionCMD func) {
         this.func = func;
     }
 

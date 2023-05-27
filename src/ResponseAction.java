@@ -1,12 +1,12 @@
-interface action {
+interface Action {
     boolean response(String resource, String ip, String request);
 }
 
-public class ResponseAction {
+class ResponseAction {
     final boolean isStart;
-    final action func;
+    final Action func;
 
-    public ResponseAction(boolean isStart, action func) {
+    public ResponseAction(Action func, boolean isStart) {
         this.isStart = isStart;
         this.func = func;
     }
