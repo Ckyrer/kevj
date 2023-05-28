@@ -19,7 +19,7 @@ public class DataOperator {
             String s;
 
             while((s = reader.readLine())!= null) {
-                data+=s;
+                data+=s+"\n";
             }
             reader.close();
 
