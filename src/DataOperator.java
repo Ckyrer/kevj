@@ -1,9 +1,7 @@
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -79,38 +77,3 @@ public class DataOperator {
     }
 
 }
-
-final class asyncLoader implements Runnable {
-    final String path;
-    final String contentType;
-    final OutputStream out;
-
-    public asyncLoader(OutputStream out, String contentType, String path) {
-        this.path = path;
-        this.out = out;
-        this.contentType = contentType;
-    }
-
-    public void run(){
-        try {
-            out.write(("HTTP/2 200 OK\n").getBytes());
-            out.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
-            out.write("\n".getBytes());
-
-            byte[] buffer = new byte[3072];
-            FileInputStream in = new FileInputStream(path);
-            int rc = in.read(buffer);
-            while(rc != -1) {
-                out.write(buffer);
-
-                rc = in.read(buffer); 
-            }
-            in.close();
-            out.flush();
-            out.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}
-
