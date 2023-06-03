@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -163,7 +164,7 @@ public class Server {
         sendBaseResponse("200 OK", contentType, content);
     }
     public final void sendResponse(String contentType, String path) {
-        new Thread(new _ResponseAction(outputb, contentType, path));
+        new Thread(new _ResponseAction(outputb, contentType, path)).start();
     }
 }
 
@@ -185,7 +186,14 @@ final class _ResponseAction implements Runnable {
                 output.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
                 output.write("\n".getBytes());
 
-
+                byte[] buffer = new byte[3072];
+                FileInputStream in = new FileInputStream(DataOperator.projectPath+path);
+                int rc = in.read(buffer);
+                while(rc != -1) {
+                    output.write(buffer);
+                    rc = in.read(buffer); 
+                }
+                in.close();
                 
                 output.flush();
             } catch (SocketException e) {
