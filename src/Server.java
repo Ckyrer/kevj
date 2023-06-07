@@ -50,8 +50,8 @@ public class Server {
                 while (!input.ready()) ;
 
                 // считываем и печатаем все что было отправлено клиентом
-                final String requestText = input.readLine();
-                final String requestedResource = requestText.split(" ")[1].replace("%20", " ").replace("%3C%3E", "<>").substring(1);
+                final String requestText = DataOperator.decodeURL(input.readLine());
+                final String requestedResource = requestText.split(" ")[1].substring(1);
                 
                 final String ip = socket.getInetAddress().toString().substring(1);
             

@@ -2,6 +2,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -74,6 +77,14 @@ public class DataOperator {
         } else {
             return "You don't supposed to see it. Please report developer about this. (build failed)";
         }
+    }
+
+    public static String decodeURL(String url) {
+        return URLDecoder.decode(url, StandardCharsets.UTF_8);
+    }
+
+    public static String encodeURL(String url) {
+        return URLEncoder.encode(url, StandardCharsets.UTF_8);
     }
 
 }
