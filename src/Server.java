@@ -20,9 +20,16 @@ public class Server {
 
     final private Map<String, ResponseAction> responses = new HashMap<String, ResponseAction>();
     final private Map<String, ResponseCMDAction> commands = new HashMap<String, ResponseCMDAction>();
+    final private Overwatch overwatch;
 
     public Server(int port) {
         this.port = port;
+        this.overwatch = null;
+    }
+
+    public Server(int port, Overwatch overwatch) {
+        this.port = port;
+        this.overwatch = overwatch;
     }
 
     public final void addRequestHandler(String requestedResourse,  boolean isStart, Action handler) {
@@ -55,13 +62,11 @@ public class Server {
                 
                 final String ip = socket.getInetAddress().toString().substring(1);
             
-
-                ResponseAction overwatch;
                 boolean proceed = true;
 
                 // Подключаем смотрителя, если он есть
-                if ((overwatch = this.responses.get("OVERWATCH"))!=null) {
-                    if (!overwatch.response(requestedResource, ip, requestText)) {
+                if (overwatch!=null) {
+                    if (!overwatch.checkpoint(requestedResource, ip, requestText)) {
                         proceed = false;
                     }
                 }

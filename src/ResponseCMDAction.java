@@ -1,5 +1,5 @@
 interface ActionCMD {
-    boolean response(String ip, String[] args);
+    void response(String ip, String[] args);
 }
 
 class ResponseCMDAction {
@@ -9,8 +9,8 @@ class ResponseCMDAction {
         this.func = func;
     }
 
-    public final boolean response(String resource, String ip) {
+    public final void response(String resource, String ip) {
         String[] args = resource.substring(resource.indexOf("<>", 5)+2).split("<>");
-        return this.func.response(ip, args);
+        this.func.response(ip, args);
     }
 }

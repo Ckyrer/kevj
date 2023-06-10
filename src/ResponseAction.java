@@ -1,5 +1,9 @@
 interface Action {
-    boolean response(String resource, String ip, String request);
+    void response(String resource, String ip, String request);
+}
+
+interface Overwatch {
+    boolean checkpoint(String resource, String ip, String request);
 }
 
 class ResponseAction {
@@ -11,7 +15,7 @@ class ResponseAction {
         this.func = func;
     }
 
-    public final boolean response(String resource, String ip, String request) {
-        return this.func.response(resource, ip, request);
+    public final void response(String resource, String ip, String request) {
+        this.func.response(resource, ip, request);
     }
 }
