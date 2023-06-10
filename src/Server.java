@@ -20,15 +20,13 @@ public class Server {
 
     final private Map<String, ResponseAction> responses = new HashMap<String, ResponseAction>();
     final private Map<String, ResponseCMDAction> commands = new HashMap<String, ResponseCMDAction>();
-    final private Overwatch overwatch;
+    private Overwatch overwatch = null;
 
     public Server(int port) {
         this.port = port;
-        this.overwatch = null;
     }
 
-    public Server(int port, Overwatch overwatch) {
-        this.port = port;
+    public final void addOverwatchHandler(Overwatch overwatch) {
         this.overwatch = overwatch;
     }
 
