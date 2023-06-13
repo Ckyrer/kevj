@@ -56,7 +56,7 @@ public class Server {
 
                 // считываем и печатаем все что было отправлено клиентом
                 final String requestText = DataOperator.decodeURL(input.readLine());
-                final String requestedResource = requestText.split(" ")[1].substring(1);
+                final String requestedResource = requestText.substring(requestText.indexOf(" ")+2, requestText.lastIndexOf(" "));
                 
                 final String ip = socket.getInetAddress().toString().substring(1);
             

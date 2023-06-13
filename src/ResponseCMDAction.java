@@ -10,7 +10,7 @@ class ResponseCMDAction {
     }
 
     public final void response(String resource, String ip) {
-        String[] args = resource.substring(resource.indexOf("<>", 5)+2).split("<>");
+        String[] args = resource.substring(resource.indexOf("<>", resource.indexOf("CMD")+5)+2).split("<>");
         this.func.response(ip, args);
     }
 }
