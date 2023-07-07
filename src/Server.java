@@ -3,7 +3,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -14,7 +13,6 @@ import java.util.Map;
 public class Server {
     final private int port;
 
-    public PrintWriter output;
     public OutputStream outputb;
     public BufferedReader input;
 
@@ -34,6 +32,10 @@ public class Server {
         this.responses.put(requestedResourse, new ResponseAction(handler, isStart));
     }
 
+    public final void addAsyncRequestHandler(String requestedResourse,  boolean isStart, AsyncAction handler) {
+        this.responses.put(requestedResourse, new ResponseAction(handler, isStart));
+    }
+
     public final void addRequestCMDHandler(String requestedResourse, ActionCMD handler) {
         this.commands.put(requestedResourse, new ResponseCMDAction(handler));
     }
@@ -49,7 +51,6 @@ public class Server {
                 // чтения и записи
                 this.input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
                 this.outputb = socket.getOutputStream();
-                this.output = new PrintWriter(outputb);
 
                 // ждем первой строки запроса
                 while (!input.ready()) ;
@@ -74,7 +75,13 @@ public class Server {
                     if (requestedResource.contains("CMD<>")) {
                         String cmd = requestedResource.split("CMD")[0] + requestedResource.split("<>")[1];
                         if (this.commands.containsKey(cmd)) {
-                            this.commands.get(cmd).response(requestedResource, ip);
+                            ResponseCMDAction c = this.commands.get(cmd);
+                            if (c.isAsync) {
+                                this.commands.get(cmd).response(requestedResource, ip, outputb);
+                                new Thread(c).start();
+                            } else {
+                                this.commands.get(cmd).response(requestedResource, ip);
+                            }
                         } else {
                             sendResponse("NONE");
                         }
@@ -84,7 +91,13 @@ public class Server {
                         // Если ресурс существует
                         if (this.responses.containsKey(requestedResource)) {
                             // Выполняем обработчик события
-                            this.responses.get(requestedResource).response(requestedResource, ip, requestText);
+                            ResponseAction act = this.responses.get(requestedResource);
+                            if (act.isAsync) {
+                                this.responses.get(requestedResource).response(requestedResource, ip, requestText, outputb);
+                                new Thread(act).start();
+                            } else {
+                                this.responses.get(requestedResource).response(requestedResource, ip, requestText);
+                            }
                         // Иначе смотрим isStart
                         } else {
                             boolean isFinded = false;
@@ -92,7 +105,12 @@ public class Server {
                             // Ищем тот обработчик, с которого начинается запрос
                             for (Map.Entry<String, ResponseAction> el: responses.entrySet()) {
                                 if (!el.getKey().equals("") && requestedResource.startsWith(el.getKey())) {
-                                    el.getValue().response(requestedResource, ip, requestText);
+                                    if (el.getValue().isAsync) {
+                                        el.getValue().response(requestedResource, ip, requestText, outputb);
+                                        new Thread(el.getValue()).start();
+                                    } else {
+                                        el.getValue().response(requestedResource, ip, requestText);
+                                    }
                                     isFinded = true;
                                     break;
                                 }
@@ -112,7 +130,6 @@ public class Server {
     }
 
     public final void closeConnection() {
-        this.output.close();
         try {
             this.input.close();
             this.outputb.close();
@@ -121,19 +138,47 @@ public class Server {
         }
     }
 
+    // Эта так скажем основа, это база
     private final void sendBaseResponse(String status, String contentType, String content) {
-        output.println("HTTP/2 "+status);
-        output.println("Content-Type: "+contentType+"; charset=utf-8");
-        output.println();
-        output.println(content);
-        output.flush();
+        try {
+            outputb.write( ("HTTP/2 "+status+"\n").getBytes() );
+            outputb.write( ("Content-Type: "+contentType+"; charset=utf-8\n").getBytes() );
+            outputb.write( "\n".getBytes() );
+            outputb.write( content.getBytes() );
+            outputb.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
         closeConnection();
     }
 
-    private final void sendBaseResponse(String status, String contentType, byte[] content) {
+    // Отправить 404
+    public final void send404Response(String resource, String ip, String request) {
+        ResponseAction res;
+        if ((res = responses.get("404")) != null) {
+            res.response(resource, ip, request);
+        } else {
+            sendBaseResponse("404 Not Found", "text/html", "Error 404: Not Found");
+        }
+        closeConnection();
+    }
+
+    // Отправить заданный статус и тип
+    public final void sendResponse(String status, String contentType, String content) {
+        sendBaseResponse(status, contentType, content);
+    }
+
+    // Отправить 200 OK html 
+    public final void sendResponse(String content) {
+        sendBaseResponse("200 OK", "text/html", content);
+    }
+
+    // Отправить массив байтов
+    public final void sendResponse(String contentType, byte[] content) {
         try {
             try {
-                outputb.write(("HTTP/2 "+status+"\n").getBytes());
+                outputb.write(("HTTP/2 200 OK\n").getBytes());
                 outputb.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
                 outputb.write("\n".getBytes());
                 outputb.write(content);
@@ -145,64 +190,29 @@ public class Server {
         closeConnection();
     }
 
-    public final void send404Response(String resource, String ip, String request) {
-        ResponseAction res;
-        if ((res = responses.get("404")) != null) {
-            res.response(resource, ip, request);
-        } else {
-            sendBaseResponse("404 Not Found", "text/html", "Error 404: Not Found");
-        }
-        closeConnection();
-    }
-
-    public final void sendResponse(String status, String contentType, String content) {
-        sendBaseResponse(status, contentType, content);
-    }
-
-    public final void sendResponse(String content) {
-        sendBaseResponse("200 OK", "text/html", content);
-    }
-
-    public final void sendResponse(String contentType, byte[] content) {
-        sendBaseResponse("200 OK", contentType, content);
-    }
-    public final void sendResponse(String contentType, String path) {
-        new Thread(new _AsyncResponseAction(outputb, contentType, path)).start();
-    }
-}
-
-final class _AsyncResponseAction implements Runnable {
-    final OutputStream output;
-    final String path;
-    final String contentType;
-
-    public _AsyncResponseAction(OutputStream output, String contentType, String path) {
-        this.output = output;
-        this.contentType = contentType;
-        this.path = path;
-    }
-
-    public final void run() {
+    // Отправить частями
+    public final void sendResponse(String contentType, String path, int bufferSize, OutputStream out) {
         try {
-            try {
-                output.write(("HTTP/2 200 OK\n").getBytes());
-                output.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
-                output.write("\n".getBytes());
-
+            out.write(("HTTP/2 200 OK\n").getBytes());
+            out.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
+            out.write("\n".getBytes());
+            
+            try ( FileInputStream in = new FileInputStream(DataOperator.projectPath+path) ) {
                 byte[] buffer = new byte[3072];
-                FileInputStream in = new FileInputStream(DataOperator.projectPath+path);
+               
                 int rc = in.read(buffer);
                 while(rc != -1) {
-                    output.write(buffer);
+                    out.write(buffer);
                     rc = in.read(buffer); 
                 }
-                in.close();
-                
-                output.flush();
-            } catch (SocketException e) {
-                System.out.println("Connection terminated by client");
             }
-            output.close();
+            
+            out.flush();
+        } catch (IOException e) {
+            System.out.println("Connection terminated by client");
+        }
+        try {
+            out.close();
         } catch (IOException e) {e.printStackTrace();}
     }
 }
