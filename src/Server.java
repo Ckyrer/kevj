@@ -40,6 +40,10 @@ public class Server {
         this.commands.put(requestedResourse, new ResponseCMDAction(handler));
     }
 
+    public final void addRequestCMDHandler(String requestedResourse, AsyncActionCMD handler) {
+        this.commands.put(requestedResourse, new ResponseCMDAction(handler));
+    }
+
     public final void start() {
         try (ServerSocket serverSocket = new ServerSocket(this.port)) {
             
