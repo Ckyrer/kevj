@@ -135,7 +135,6 @@ public class Server {
 
     public final void closeConnection() {
         try {
-            this.input.close();
             this.outputb.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -145,14 +144,16 @@ public class Server {
     // Эта так скажем основа, это база
     private final void sendBaseResponse(String status, String contentType, String content) {
         try {
-            outputb.write( ("HTTP/2 "+status+"\n").getBytes() );
-            outputb.write( ("Content-Type: "+contentType+"; charset=utf-8\n").getBytes() );
-            outputb.write( "\n".getBytes() );
-            outputb.write( content.getBytes() );
-            outputb.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+            try {
+                outputb.write( ("HTTP/2 "+status+"\n").getBytes() );
+                outputb.write( ("Content-Type: "+contentType+"; charset=utf-8\n").getBytes() );
+                outputb.write( "\n".getBytes() );
+                outputb.write( content.getBytes() );
+                outputb.flush();
+            } catch (SocketException e) {
+                System.out.println("Соединение разорвано");
+            }
+        } catch (IOException e) {e.printStackTrace();}
         
         closeConnection();
     }
@@ -197,23 +198,27 @@ public class Server {
     // Отправить частями
     public final void sendResponse(String contentType, String path, int bufferSize, OutputStream out) {
         try {
-            out.write(("HTTP/2 200 OK\n").getBytes());
-            out.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
-            out.write("\n".getBytes());
-            
-            try ( FileInputStream in = new FileInputStream(DataOperator.projectPath+path) ) {
-                byte[] buffer = new byte[3072];
-               
-                int rc = in.read(buffer);
-                while(rc != -1) {
-                    out.write(buffer);
-                    rc = in.read(buffer); 
+            try {
+                out.write(("HTTP/2 200 OK\n").getBytes());
+                out.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
+                out.write("\n".getBytes());
+                
+                try ( FileInputStream in = new FileInputStream(DataOperator.projectPath+path) ) {
+                    byte[] buffer = new byte[3072];
+                
+                    int rc = in.read(buffer);
+                    while(rc != -1) {
+                        out.write(buffer);
+                        rc = in.read(buffer); 
+                    }
                 }
+                
+                out.flush();
+            } catch (SocketException e) {
+                System.out.println("Соединение разорвано");
             }
-            
-            out.flush();
         } catch (IOException e) {
-            System.out.println("Connection terminated by client");
+            e.printStackTrace();
         }
         try {
             out.close();
