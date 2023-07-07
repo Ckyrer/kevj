@@ -167,16 +167,16 @@ public class Server {
         sendBaseResponse("200 OK", contentType, content);
     }
     public final void sendResponse(String contentType, String path) {
-        new Thread(new _ResponseAction(outputb, contentType, path)).start();
+        new Thread(new _AsyncResponseAction(outputb, contentType, path)).start();
     }
 }
 
-final class _ResponseAction implements Runnable {
+final class _AsyncResponseAction implements Runnable {
     final OutputStream output;
     final String path;
     final String contentType;
 
-    public _ResponseAction(OutputStream output, String contentType, String path) {
+    public _AsyncResponseAction(OutputStream output, String contentType, String path) {
         this.output = output;
         this.contentType = contentType;
         this.path = path;
