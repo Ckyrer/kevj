@@ -63,6 +63,8 @@ public class Server {
                 final String requestText = DataOperator.decodeURL(input.readLine());
                 final String requestedResource = requestText.substring(requestText.indexOf(" ")+2, requestText.lastIndexOf(" "));
                 
+                input.close();
+                
                 final String ip = socket.getInetAddress().toString().substring(1);
             
                 boolean proceed = true;
@@ -97,10 +99,10 @@ public class Server {
                             // Выполняем обработчик события
                             ResponseAction act = this.responses.get(requestedResource);
                             if (act.isAsync) {
-                                this.responses.get(requestedResource).response(requestedResource, ip, requestText, outputb);
+                                act.response(requestedResource, ip, requestText, outputb);
                                 new Thread(act).start();
                             } else {
-                                this.responses.get(requestedResource).response(requestedResource, ip, requestText);
+                                act.response(requestedResource, ip, requestText);
                             }
                         // Иначе смотрим isStart
                         } else {

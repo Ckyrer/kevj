@@ -1,5 +1,5 @@
 .vscode/
 *.class
-src/App.java
+src/TestApp.java
 resources/
 *.jar
