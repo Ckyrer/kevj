@@ -35,14 +35,15 @@ public class ResponseThread implements Runnable {
         
             boolean proceed = true;
 
+            // Создаём ответчика
+            Responser resp = new Responser(output, this);
+
             // Подключаем смотрителя, если он есть
             if (overwatch!=null) {
-                proceed = overwatch.checkpoint(requestedResource, ip, requestText);
+                proceed = overwatch.checkpoint(requestedResource, ip, requestText, resp);
             }
 
             if (proceed) {
-                // Создаём ответчика
-                Responser resp = new Responser(output, this);
 
                 // Если команда
                 if (requestedResource.contains("CMD<>")) {

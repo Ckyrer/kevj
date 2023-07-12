@@ -3,7 +3,7 @@ interface Action {
 }
 
 interface Overwatch {
-    boolean checkpoint(String resource, String ip, String request);
+    boolean checkpoint(String resource, String ip, String request, Responser resp);
 }
 
 class ResponseAction  {
