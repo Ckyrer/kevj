@@ -1,3 +1,5 @@
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.OutputStream;
 
 interface Action {
@@ -12,16 +14,11 @@ interface Overwatch {
     boolean checkpoint(String resource, String ip, String request);
 }
 
-class ResponseAction implements Runnable {
+class ResponseAction  {
     final boolean isStart;
     final Action func;
     final AsyncAction asyncFunc;
     final boolean isAsync;
-
-    private String resource;
-    private String ip;
-    private String request;
-    private OutputStream output;
 
     public ResponseAction(Action func, boolean isStart) {
         this.isStart = isStart;
@@ -38,22 +35,39 @@ class ResponseAction implements Runnable {
     }
 
     public final void response(String resource, String ip, String request) {
-        if (func==null) {
-            System.out.println("Error! Invalid method used in ResponseAction!");
-            return;
-        }
         this.func.response(resource, ip, request);
     }
 
-    public final void response(String resource, String ip, String request, OutputStream out) {
-        this.resource = resource;
+    public final void response(String resource, String ip, String request, OutputStream out, BufferedReader inp) {
+        new Thread( new _AsyncResponseAction(asyncFunc, ip, resource, request, out, inp) ).start();
+    }
+
+}
+
+class _AsyncResponseAction implements Runnable {
+    final AsyncAction asyncFunc;
+    final OutputStream out;
+    final BufferedReader in;
+    final String ip;
+    final String resource;
+    final String request;
+
+    public _AsyncResponseAction(AsyncAction func, String ip, String res, String req, OutputStream out, BufferedReader inp) {
+        this.out = out;
+        this.in = inp;
+        this.asyncFunc = func;
+
         this.ip = ip;
-        this.request = request;
-        this.output = out;
+        this.resource = res;
+        this.request = req;
     }
 
     public final void run() {
-        this.asyncFunc.response(resource, ip, request, output);
+        this.asyncFunc.response(resource, ip, request, out);
+        try {
+            out.close();
+            in.close();
+        } catch (IOException e) {e.printStackTrace();}
     }
 
 }

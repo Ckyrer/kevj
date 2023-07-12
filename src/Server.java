@@ -63,8 +63,6 @@ public class Server {
                 final String requestText = DataOperator.decodeURL(input.readLine());
                 final String requestedResource = requestText.substring(requestText.indexOf(" ")+2, requestText.lastIndexOf(" "));
                 
-                input.close();
-                
                 final String ip = socket.getInetAddress().toString().substring(1);
             
                 boolean proceed = true;
@@ -83,8 +81,7 @@ public class Server {
                         if (this.commands.containsKey(cmd)) {
                             ResponseCMDAction c = this.commands.get(cmd);
                             if (c.isAsync) {
-                                this.commands.get(cmd).response(requestedResource, ip, outputb);
-                                new Thread(c).start();
+                                this.commands.get(cmd).response(requestedResource, ip, outputb, input);
                             } else {
                                 this.commands.get(cmd).response(requestedResource, ip);
                             }
@@ -99,8 +96,7 @@ public class Server {
                             // Выполняем обработчик события
                             ResponseAction act = this.responses.get(requestedResource);
                             if (act.isAsync) {
-                                act.response(requestedResource, ip, requestText, outputb);
-                                new Thread(act).start();
+                                act.response(requestedResource, ip, requestText, outputb, input);
                             } else {
                                 act.response(requestedResource, ip, requestText);
                             }
@@ -112,8 +108,7 @@ public class Server {
                             for (Map.Entry<String, ResponseAction> el: responses.entrySet()) {
                                 if (!el.getKey().equals("") && requestedResource.startsWith(el.getKey())) {
                                     if (el.getValue().isAsync) {
-                                        el.getValue().response(requestedResource, ip, requestText, outputb);
-                                        new Thread(el.getValue()).start();
+                                        el.getValue().response(requestedResource, ip, requestText, outputb, input);
                                     } else {
                                         el.getValue().response(requestedResource, ip, requestText);
                                     }
@@ -137,20 +132,25 @@ public class Server {
 
     public final void closeConnection() {
         try {
+            this.input.close();
             this.outputb.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    // --------------------------------------------------
+    // send responses
+    // --------------------------------------------------
+
     // Эта так скажем основа, это база
-    private final void sendBaseResponse(String status, String contentType, String content) {
+    private final void sendBaseResponse(String status, String contentType, byte[] content) {
         try {
             try {
                 outputb.write( ("HTTP/2 "+status+"\n").getBytes() );
                 outputb.write( ("Content-Type: "+contentType+"; charset=utf-8\n").getBytes() );
                 outputb.write( "\n".getBytes() );
-                outputb.write( content.getBytes() );
+                outputb.write( content );
                 outputb.flush();
             } catch (SocketException e) {
                 System.out.println("Соединение разорвано");
@@ -168,37 +168,31 @@ public class Server {
         } else {
             sendBaseResponse("404 Not Found", "text/html", "Error 404: Not Found");
         }
-        closeConnection();
     }
 
     // Отправить заданный статус и тип
     public final void sendResponse(String status, String contentType, String content) {
-        sendBaseResponse(status, contentType, content);
+        sendBaseResponse(status, contentType, content.getBytes());
     }
 
     // Отправить 200 OK html 
     public final void sendResponse(String content) {
-        sendBaseResponse("200 OK", "text/html", content);
+        sendBaseResponse("200 OK", "text/html", content.getBytes());
     }
 
     // Отправить массив байтов
     public final void sendResponse(String contentType, byte[] content) {
-        try {
-            try {
-                outputb.write(("HTTP/2 200 OK\n").getBytes());
-                outputb.write(("Content-Type: "+contentType+"; charset=utf-8\n").getBytes());
-                outputb.write("\n".getBytes());
-                outputb.write(content);
-                outputb.flush();
-            } catch (SocketException e) {
-                System.out.println("Connection terminated by client");
-            }
-        } catch (IOException e) {e.printStackTrace();}
-        closeConnection();
+        sendBaseResponse("200 OK", contentType, content);
     }
 
+
+
+    // --------------------------------------------------
+    // send async responses
+    // --------------------------------------------------
+    
     // Отправить частями
-    public final void sendResponse(String contentType, String path, int bufferSize, OutputStream out) {
+    public final void sendResponseAsync(String contentType, String path, int bufferSize, OutputStream out) {
         try {
             try {
                 out.write(("HTTP/2 200 OK\n").getBytes());
@@ -217,13 +211,12 @@ public class Server {
                 
                 out.flush();
             } catch (SocketException e) {
+                e.printStackTrace();
                 System.out.println("Соединение разорвано");
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        try {
-            out.close();
-        } catch (IOException e) {e.printStackTrace();}
     }
 }
+
